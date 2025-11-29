@@ -1,0 +1,171 @@
+-- Fetch Logic (Final Version)
+-- Handles: PC+4, All Branches (using Zero/Sign/Cout/Funct3), JAL, JALR
+-------------------------------------------------------------------------
+library IEEE;
+use IEEE.std_logic_1164.all;
+use IEEE.numeric_std.all;
+
+entity fetch_logic is
+    generic(N : integer := 32);
+    port(
+        -- Data Inputs
+        i_PC        : in std_logic_vector(N-1 downto 0); 
+        i_Imm       : in std_logic_vector(N-1 downto 0); 
+        i_RS1       : in std_logic_vector(N-1 downto 0); -- JALR Base Address
+        
+        -- Control & Condition Signals
+        i_Branch    : in std_logic;                      -- 1 = Conditional Branch Instruction
+        i_Jump      : in std_logic_vector(1 downto 0);   -- 00=No, 01=JAL, 10=JALR
+        i_Funct3    : in std_logic_vector(2 downto 0);   -- Branch Type (beq, bne, blt 등)
+        i_ALUZero   : in std_logic;                      -- ALU Zero Flag
+        i_ALUSign   : in std_logic;                      -- ALU Result MSB (Sign Bit)
+        i_ALUCout   : in std_logic;                      -- ALU Carry Out (For Unsigned Branch)
+        
+        -- Output
+        o_NextPC    : out std_logic_vector(N-1 downto 0) 
+    );
+end fetch_logic;
+
+architecture behavior of fetch_logic is
+    
+    signal s_PCPlus4   : std_logic_vector(N-1 downto 0);
+    signal s_PCPlusImm : std_logic_vector(N-1 downto 0);
+    signal s_JALRTarget: std_logic_vector(N-1 downto 0);
+    
+    signal s_TakeBranch: std_logic; 
+
+begin
+
+    -- 1. Calculate Address Candidates
+    s_PCPlus4    <= std_logic_vector(unsigned(i_PC) + 4);
+    s_PCPlusImm  <= std_logic_vector(unsigned(i_PC) + unsigned(i_Imm));
+    s_JALRTarget <= (std_logic_vector(unsigned(i_RS1) + unsigned(i_Imm)))
+	(N-1 downto 1) & ‘0’; 
+
+    -- 2. Branch Condition Logic 
+    process(i_Branch, i_Funct3, i_ALUZero, i_ALUSign, i_ALUCout)
+    begin
+        s_TakeBranch <= '0';
+        
+        if (i_Branch = '1') then
+            case i_Funct3 is
+                when "000" => -- BEQ (Equal)
+                    s_TakeBranch <= i_ALUZero; 
+                when "001" => -- BNE (Not Equal)
+                    s_TakeBranch <= not i_ALUZero;
+                when "100" => -- BLT (Less Than - Signed)
+                    s_TakeBranch <= i_ALUSign; 
+                when "101" => -- BGE (Greater/Equal - Signed)
+                    s_TakeBranch <= not i_ALUSign;
+                when "110" => -- BLTU (Less Than - Unsigned)
+                    -- In subtraction (A-B), if A < B (unsigned), a borrow occurs (Cout=0)
+                    s_TakeBranch <= not i_ALUCout;
+                when "111" => -- BGEU (Greater/Equal - Unsigned)
+                    -- In subtraction (A-B), if A >= B (unsigned), no borrow occurs (Cout=1)
+                    s_TakeBranch <= i_ALUCout;
+                when others =>
+                    s_TakeBranch <= '0';
+            end case;
+        end if;
+    end process;
+
+    -- 3. Next PC MUX Logic (Priority Encoder)
+    process(i_Jump, s_TakeBranch, s_PCPlus4, s_PCPlusImm, s_JALRTarget)
+    begin
+        if (i_Jump = "10") then         -- JALR
+            o_NextPC <= s_JALRTarget;
+        elsif (i_Jump = "01") then      -- JAL
+            o_NextPC <= s_PCPlusImm;
+        elsif (s_TakeBranch = '1') then -- Conditional Branch Taken
+            o_NextPC <= s_PCPlusImm;
+        else                            -- Sequential
+            o_NextPC <= s_PCPlus4;
+        end if;
+    end process;
+
+end behavior;Fetch Logic (Final Version)
+-- Handles: PC+4, All Branches (using Zero/Sign/Cout/Funct3), JAL, JALR
+-------------------------------------------------------------------------
+library IEEE;
+use IEEE.std_logic_1164.all;
+use IEEE.numeric_std.all;
+
+entity fetch_logic is
+    generic(N : integer := 32);
+    port(
+        -- Data Inputs
+        i_PC        : in std_logic_vector(N-1 downto 0); 
+        i_Imm       : in std_logic_vector(N-1 downto 0); 
+        i_RS1       : in std_logic_vector(N-1 downto 0); -- JALR Base Address
+        
+        -- Control & Condition Signals
+        i_Branch    : in std_logic;                      -- 1 = Conditional Branch Instruction
+        i_Jump      : in std_logic_vector(1 downto 0);   -- 00=No, 01=JAL, 10=JALR
+        i_Funct3    : in std_logic_vector(2 downto 0);   -- Branch Type (beq, bne, blt 등)
+        i_ALUZero   : in std_logic;                      -- ALU Zero Flag
+        i_ALUSign   : in std_logic;                      -- ALU Result MSB (Sign Bit)
+        i_ALUCout   : in std_logic;                      -- ALU Carry Out (For Unsigned Branch)
+        
+        -- Output
+        o_NextPC    : out std_logic_vector(N-1 downto 0) 
+    );
+end fetch_logic;
+
+architecture behavior of fetch_logic is
+    
+    signal s_PCPlus4   : std_logic_vector(N-1 downto 0);
+    signal s_PCPlusImm : std_logic_vector(N-1 downto 0);
+    signal s_JALRTarget: std_logic_vector(N-1 downto 0);
+    
+    signal s_TakeBranch: std_logic; 
+
+begin
+
+    -- 1. Calculate Address Candidates
+    s_PCPlus4    <= std_logic_vector(unsigned(i_PC) + 4);
+    s_PCPlusImm  <= std_logic_vector(unsigned(i_PC) + unsigned(i_Imm));
+    s_JALRTarget <= (std_logic_vector(unsigned(i_RS1) + unsigned(i_Imm)))
+	(N-1 downto 1) & ‘0’; 
+
+    -- 2. Branch Condition Logic 
+    process(i_Branch, i_Funct3, i_ALUZero, i_ALUSign, i_ALUCout)
+    begin
+        s_TakeBranch <= '0';
+        
+        if (i_Branch = '1') then
+            case i_Funct3 is
+                when "000" => -- BEQ (Equal)
+                    s_TakeBranch <= i_ALUZero; 
+                when "001" => -- BNE (Not Equal)
+                    s_TakeBranch <= not i_ALUZero;
+                when "100" => -- BLT (Less Than - Signed)
+                    s_TakeBranch <= i_ALUSign; 
+                when "101" => -- BGE (Greater/Equal - Signed)
+                    s_TakeBranch <= not i_ALUSign;
+                when "110" => -- BLTU (Less Than - Unsigned)
+                    -- In subtraction (A-B), if A < B (unsigned), a borrow occurs (Cout=0)
+                    s_TakeBranch <= not i_ALUCout;
+                when "111" => -- BGEU (Greater/Equal - Unsigned)
+                    -- In subtraction (A-B), if A >= B (unsigned), no borrow occurs (Cout=1)
+                    s_TakeBranch <= i_ALUCout;
+                when others =>
+                    s_TakeBranch <= '0';
+            end case;
+        end if;
+    end process;
+
+    -- 3. Next PC MUX Logic (Priority Encoder)
+    process(i_Jump, s_TakeBranch, s_PCPlus4, s_PCPlusImm, s_JALRTarget)
+    begin
+        if (i_Jump = "10") then         -- JALR
+            o_NextPC <= s_JALRTarget;
+        elsif (i_Jump = "01") then      -- JAL
+            o_NextPC <= s_PCPlusImm;
+        elsif (s_TakeBranch = '1') then -- Conditional Branch Taken
+            o_NextPC <= s_PCPlusImm;
+        else                            -- Sequential
+            o_NextPC <= s_PCPlus4;
+        end if;
+    end process;
+
+end behavior;

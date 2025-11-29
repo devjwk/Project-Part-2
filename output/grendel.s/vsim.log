@@ -1,0 +1,77 @@
+Reading pref.tcl
+
+# 2025.1_2
+
+# vsim -postsimdataflow -debugdb -c -voptargs=""+acc"" tb -do "modelsim_framework.do" -gOUTPUT_TRACE=ms.trace 
+# Start time: 12:36:25 on Nov 29,2025
+# ** Note: (vsim-3812) Design is being optimized...
+# ** Note: (vsim-8611) Generating debug db.
+# ** Warning: (vopt-10587) Some optimizations are turned off because the +acc switch is in effect. This will cause your simulation to run slowly. Please use -access/-debug to maintain needed visibility. The +acc switch would be deprecated in a future release.
+# ** Note: (vopt-4301) Memory core inferred for signal 'ram' width=32, depth=1024, type=RAM at location proj/src/TopLevel/mem.vhd:35
+# ** Note: (vsim-12126) Error and warning message counts have been restored: Errors=0, Warnings=1.
+# //  Questa Sim-64
+# //  Version 2025.1_2 linux_x86_64 Apr  7 2025
+# //
+# // Unpublished work. Copyright 2025 Siemens
+# //
+# // This material contains trade secrets or otherwise confidential information
+# // owned by Siemens Industry Software Inc. or its affiliates (collectively,
+# // "SISW"), or its licensors. Access to and use of this information is strictly
+# // limited as set forth in the Customer's applicable agreements with SISW.
+# //
+# // This material may not be copied, distributed, or otherwise disclosed outside
+# // of the Customer's facilities without the express written permission of SISW,
+# // and may not be used in any way not expressly authorized by SISW.
+# //
+# Loading std.standard
+# Loading std.textio(body)
+# Loading ieee.std_logic_1164(body)
+# Loading ieee.std_logic_textio(body)
+# Loading std.env(body)
+# Loading work.tb(mixed)#1
+# Loading ieee.numeric_std(body)
+# Loading work.riscv_types(body)
+# Loading work.riscv_processor(structure)#1
+# Loading work.mem(rtl)#1
+# Loading work.control_unit(behavior)#1
+# Loading work.pc_reg(behavior)#1
+# Loading work.fetch_logic(behavior)#1
+# Loading work.reg_file(structural)#1
+# Loading work.dec5to32(dataflow)#1
+# Loading work.regn(structural)#1
+# Loading work.dffg(mixed)#1
+# Loading work.mux32to1(dataflow)#1
+# Loading work.imm_gen(behavior)#1
+# Loading work.alu_control(behavior)#1
+# Loading work.alu(structural)#1
+# Loading work.adder_subtractor(behavior)#1
+# Loading work.barrel_shifter(structural)#1
+# Loading work.load_extender(behavioral)#1
+# ** Note: (vsim-8900) Creating design debug database vsim.dbg.
+# do modelsim_framework.do
+# ** Warning: NUMERIC_STD."=": metavalue detected, returning FALSE
+#    Time: 0 ns  Iteration: 0  Instance: /tb/MyRiscv/U_ALU
+# ** Warning: NUMERIC_STD.TO_INTEGER: metavalue detected, returning 0
+#    Time: 0 ns  Iteration: 0  Instance: /tb/MyRiscv/U_REGFILE/u_mux2
+# ** Warning: NUMERIC_STD.TO_INTEGER: metavalue detected, returning 0
+#    Time: 0 ns  Iteration: 0  Instance: /tb/MyRiscv/U_REGFILE/u_mux2
+# ** Warning: NUMERIC_STD.TO_INTEGER: metavalue detected, returning 0
+#    Time: 0 ns  Iteration: 0  Instance: /tb/MyRiscv/U_REGFILE/u_mux1
+# ** Warning: NUMERIC_STD.TO_INTEGER: metavalue detected, returning 0
+#    Time: 0 ns  Iteration: 0  Instance: /tb/MyRiscv/U_REGFILE/u_mux1
+# ** Warning: NUMERIC_STD.TO_INTEGER: metavalue detected, returning 0
+#    Time: 0 ns  Iteration: 0  Instance: /tb/MyRiscv/DMem
+# ** Warning: NUMERIC_STD.TO_INTEGER: metavalue detected, returning 0
+#    Time: 0 ns  Iteration: 0  Instance: /tb/MyRiscv/IMem
+# ** Warning: NUMERIC_STD.TO_INTEGER: metavalue detected, returning 0
+#    Time: 0 ns  Iteration: 4  Instance: /tb/MyRiscv/IMem
+# ** Warning: NUMERIC_STD.TO_INTEGER: metavalue detected, returning 0
+#    Time: 0 ns  Iteration: 5  Instance: /tb/MyRiscv/DMem
+# ** Note: Data structure takes 54116872 bytes of memory
+#          Process time 0.21 seconds
+#          stop
+#    Time: 42620 ns  Iteration: 1  Instance: /tb
+# Break in Process P_DUMP_STATE at /home/jwk0425/cpre381/ProjectPart2/cpre3810-toolflow/internal/testpy/tb.vhd line 150
+# Stopped at /home/jwk0425/cpre381/ProjectPart2/cpre3810-toolflow/internal/testpy/tb.vhd line 150
+# End time: 12:36:27 on Nov 29,2025, Elapsed time: 0:00:02
+# Errors: 0, Warnings: 10
