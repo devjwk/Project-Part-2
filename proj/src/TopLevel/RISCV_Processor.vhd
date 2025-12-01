@@ -1,17 +1,8 @@
 -------------------------------------------------------------------------
--- Henry Duwe
--- Department of Electrical and Computer Engineering
--- Iowa State University
--------------------------------------------------------------------------
 -- RISCV_Processor.vhd
+-- Final Pipelined Version (Software-Scheduled)
+-- Stages: IF -> ID -> EX -> MEM -> WB
 -------------------------------------------------------------------------
--- DESCRIPTION: This file contains a skeleton of a RISCV_Processor
--- implementation.
--- 01/29/2019 by H3::Design created.
--- 04/10/2025 by AP::Coverted to RISC-V.
--- Integrated & Fixed by Assistant
--------------------------------------------------------------------------
-
 library IEEE;
 use IEEE.std_logic_1164.all;
 use IEEE.numeric_std.all;
@@ -33,366 +24,599 @@ end RISCV_Processor;
 
 architecture structure of RISCV_Processor is
 
-    -- [1] Required data memory signals (Skeleton Compliance)
+    -- ======================================================================
+    -- [Existing Signals] (Retained for compatibility or internal use)
+    -- ======================================================================
     signal s_DMemWr   : std_logic; 
-    signal s_DMemAddr : std_logic_vector(N-1 downto 0); 
     signal s_DMemData : std_logic_vector(N-1 downto 0); 
     signal s_DMemOut  : std_logic_vector(N-1 downto 0); 
-    
-    -- [2] Required register file signals (Skeleton Compliance)
-    signal s_RegWr     : std_logic; 
-    signal s_RegWrAddr : std_logic_vector(4 downto 0); 
-    signal s_RegWrData : std_logic_vector(N-1 downto 0); 
-
-    -- [3] Required instruction memory signals
-    signal s_IMemAddr     : std_logic_vector(N-1 downto 0); 
+    signal s_RegWr    : std_logic; 
+    signal s_RegWrAddr: std_logic_vector(4 downto 0); 
+    signal s_RegWrData: std_logic_vector(N-1 downto 0); 
+    signal s_IMemAddr : std_logic_vector(N-1 downto 0); 
     signal s_NextInstAddr : std_logic_vector(N-1 downto 0); 
-    signal s_Inst         : std_logic_vector(N-1 downto 0); 
+    signal s_Inst     : std_logic_vector(N-1 downto 0); -- Output of IMem (IF Stage)
+    signal s_Halt     : std_logic; 
+    signal s_Ovfl     : std_logic; 
+    signal s_CurrentPC: std_logic_vector(31 downto 0); -- Output of PC Reg (IF Stage)
 
-    -- [4] Required halt & overflow signals
-    signal s_Halt : std_logic; 
-    signal s_Ovfl : std_logic; 
-
-    -- [5] Internal Control & Data Signals (User Logic)
-    signal s_CurrentPC : std_logic_vector(31 downto 0);
-    
-    signal s_Funct3    : std_logic_vector(2 downto 0);
-    signal s_Funct7    : std_logic_vector(6 downto 0);
-    
-    signal s_MemRead   : std_logic;
-    -- s_MemWrite is mapped to s_DMemWr
-    signal s_Branch    : std_logic;
-    signal s_Jump      : std_logic_vector(1 downto 0);
-    
-    signal s_ALUSrcA   : std_logic;
-    signal s_ALUSrcB   : std_logic;
-    signal s_MemtoReg  : std_logic_vector(1 downto 0);
-    signal s_ALUOp     : std_logic_vector(1 downto 0);
-    signal s_ImmType   : std_logic_vector(2 downto 0);
-    
-    signal s_ReadData1 : std_logic_vector(31 downto 0);
-    -- s_ReadData2 is mapped to s_DMemData
-    
-    signal s_Imm       : std_logic_vector(31 downto 0);
-    signal s_ALUCtrl   : std_logic_vector(3 downto 0);
-    
-    signal s_ALUInputA : std_logic_vector(31 downto 0);
-    signal s_ALUInputB : std_logic_vector(31 downto 0);
-    signal s_ALUResult : std_logic_vector(31 downto 0); -- Internal ALU Result
-    
-    signal s_Zero      : std_logic;
-    signal s_Sign      : std_logic;
-    signal s_Cout      : std_logic;
-
-    signal s_ReadData2 : std_logic_vector(31 downto 0); 
+    -- Internal Control Signals (Generated in ID Stage)
+    signal s_Funct3   : std_logic_vector(2 downto 0);
+    signal s_Funct7   : std_logic_vector(6 downto 0);
+    signal s_MemRead  : std_logic;
+    signal s_Branch   : std_logic;
+    signal s_Jump     : std_logic_vector(1 downto 0);
+    signal s_ALUSrcA  : std_logic;
+    signal s_ALUSrcB  : std_logic;
+    signal s_MemtoReg : std_logic_vector(1 downto 0);
+    signal s_ALUOp    : std_logic_vector(1 downto 0);
+    signal s_ImmType  : std_logic_vector(2 downto 0);
+    signal s_ReadData1: std_logic_vector(31 downto 0);
+    signal s_ReadData2: std_logic_vector(31 downto 0);
+    signal s_Imm      : std_logic_vector(31 downto 0);
+    signal s_ALUCtrl  : std_logic_vector(3 downto 0);
+    signal s_ALUInputA: std_logic_vector(31 downto 0);
+    signal s_ALUInputB: std_logic_vector(31 downto 0);
+    signal s_ALUResult: std_logic_vector(31 downto 0);
+    signal s_Zero     : std_logic;
+    signal s_Sign     : std_logic;
+    signal s_Cout     : std_logic;
     signal s_LoadData : std_logic_vector(31 downto 0);
-    signal s_ByteOffset : std_logic_vector(1 downto 0);
 
+    -- ======================================================================
+    -- [NEW] Pipeline Stage Signals
+    -- ======================================================================
+
+    -- [IF Stage]
+    signal s_IF_Flush : std_logic; 
+
+    -- [ID Stage] (Outputs of IF/ID Register)
+    signal s_ID_PC    : std_logic_vector(31 downto 0);
+    signal s_ID_Inst  : std_logic_vector(31 downto 0);
+    signal s_ID_Flush : std_logic; 
+    signal s_ID_Halt  : std_logic; -- Halt detected in ID stage
+
+    -- [EX Stage] (Outputs of ID/EX Register)
+    signal s_EX_RegWrite : std_logic;
+    signal s_EX_MemtoReg : std_logic_vector(1 downto 0);
+    signal s_EX_Halt     : std_logic;
+    signal s_EX_MemWrite : std_logic;
+    signal s_EX_MemRead  : std_logic;
+    signal s_EX_ALUSrcA  : std_logic;
+    signal s_EX_ALUSrcB  : std_logic;
+    signal s_EX_ALUOp    : std_logic_vector(1 downto 0);
+    signal s_EX_Branch   : std_logic;
+    signal s_EX_Jump     : std_logic_vector(1 downto 0);
+    
+    signal s_EX_PC       : std_logic_vector(31 downto 0);
+    signal s_EX_ReadData1: std_logic_vector(31 downto 0);
+    signal s_EX_ReadData2: std_logic_vector(31 downto 0);
+    signal s_EX_Imm      : std_logic_vector(31 downto 0);
+    signal s_EX_Funct3   : std_logic_vector(2 downto 0);
+    signal s_EX_Funct7   : std_logic_vector(6 downto 0);
+    signal s_EX_Rd       : std_logic_vector(4 downto 0);
+    signal s_EX_Rs1      : std_logic_vector(4 downto 0);
+    signal s_EX_Rs2      : std_logic_vector(4 downto 0);
+
+    -- [MEM Stage] (Outputs of EX/MEM Register)
+    signal s_MEM_RegWrite : std_logic;
+    signal s_MEM_MemtoReg : std_logic_vector(1 downto 0);
+    signal s_MEM_Halt     : std_logic;
+    signal s_MEM_MemWrite : std_logic;
+    signal s_MEM_MemRead  : std_logic;
+    
+    signal s_MEM_PCPlus4   : std_logic_vector(31 downto 0);
+    signal s_MEM_ALUResult : std_logic_vector(31 downto 0);
+    signal s_MEM_WriteData : std_logic_vector(31 downto 0);
+    signal s_MEM_Rd        : std_logic_vector(4 downto 0);
+    signal s_MEM_Imm       : std_logic_vector(31 downto 0);
+
+    -- [WB Stage] (Outputs of MEM/WB Register)
+    signal s_WB_RegWrite : std_logic;
+    signal s_WB_MemtoReg : std_logic_vector(1 downto 0);
+    signal s_WB_Halt     : std_logic;
+    
+    signal s_WB_ReadData : std_logic_vector(31 downto 0);
+    signal s_WB_ALUResult: std_logic_vector(31 downto 0);
+    signal s_WB_PCPlus4  : std_logic_vector(31 downto 0);
+    signal s_WB_Imm      : std_logic_vector(31 downto 0);
+    signal s_WB_Rd       : std_logic_vector(4 downto 0);
+
+    -- [WB Final Mux Output]
+    signal s_WB_WriteData : std_logic_vector(31 downto 0); 
 
     -- ======================================================================
     -- Component Declarations
     -- ======================================================================
-
-    -- 1. Memory (Provided by Skeleton)
     component mem is
-        generic(
-            ADDR_WIDTH : integer;
-            DATA_WIDTH : integer
-        );
+        generic(ADDR_WIDTH : integer; DATA_WIDTH : integer);
         port(
-            clk  : in std_logic;
-            addr : in std_logic_vector((ADDR_WIDTH-1) downto 0); -- Fixed size mapping
-            data : in std_logic_vector((DATA_WIDTH-1) downto 0);
-            we   : in std_logic := '1';
-            q    : out std_logic_vector((DATA_WIDTH -1) downto 0)
+            clk : in std_logic; 
+            addr : in std_logic_vector((ADDR_WIDTH-1) downto 0);
+            data : in std_logic_vector((DATA_WIDTH-1) downto 0); 
+            we : in std_logic := '1';
+            q : out std_logic_vector((DATA_WIDTH -1) downto 0)
         );
     end component;
 
-    -- 2. Control Unit
     component control_unit is
         port(
-            i_Opcode   : in  std_logic_vector(6 downto 0);
-            o_ALUSrc   : out std_logic;
-            o_MemtoReg : out std_logic_vector(1 downto 0);
+            i_Opcode : in std_logic_vector(6 downto 0); 
+            o_ALUSrc : out std_logic;
+            o_MemtoReg : out std_logic_vector(1 downto 0); 
             o_RegWrite : out std_logic;
-            o_MemRead  : out std_logic;
-            o_MemWrite : out std_logic;
-            o_Branch   : out std_logic;
-            o_Jump     : out std_logic_vector(1 downto 0);
-            o_ALUOp    : out std_logic_vector(1 downto 0);
-            o_ImmType  : out std_logic_vector(2 downto 0);
+            o_MemRead : out std_logic; 
+            o_MemWrite : out std_logic; 
+            o_Branch : out std_logic;
+            o_Jump : out std_logic_vector(1 downto 0); 
+            o_ALUOp : out std_logic_vector(1 downto 0);
+            o_ImmType : out std_logic_vector(2 downto 0); 
             o_AUIPCSrc : out std_logic
         );
     end component;
 
-    -- 3. Register File
-    -- NOTE: Ensure your regfile.vhd entity name is 'regfile'
     component reg_file is
         port(
-            i_CLK    : in  std_logic;
-            i_RST    : in  std_logic;
-            i_WE     : in  std_logic;
-            i_WADDR  : in  std_logic_vector(4 downto 0);
-            i_WDATA  : in  std_logic_vector(31 downto 0);
-            i_RADDR1 : in  std_logic_vector(4 downto 0);
-            i_RADDR2 : in  std_logic_vector(4 downto 0);
-            o_RDATA1 : out std_logic_vector(31 downto 0);
+            i_CLK : in std_logic; 
+            i_RST : in std_logic; 
+            i_WE : in std_logic;
+            i_WADDR : in std_logic_vector(4 downto 0); 
+            i_WDATA : in std_logic_vector(31 downto 0);
+            i_RADDR1 : in std_logic_vector(4 downto 0); 
+            i_RADDR2 : in std_logic_vector(4 downto 0);
+            o_RDATA1 : out std_logic_vector(31 downto 0); 
             o_RDATA2 : out std_logic_vector(31 downto 0)
         );
     end component;
 
-    -- 4. ALU
     component alu is
         port(
-            i_A        : in  std_logic_vector(31 downto 0);
-            i_B        : in  std_logic_vector(31 downto 0);
-            i_ALUCtrl  : in  std_logic_vector(3 downto 0); 
-            o_Result   : out std_logic_vector(31 downto 0);
-            o_Zero     : out std_logic;
-            o_Sign     : out std_logic; 
-            o_Cout     : out std_logic  
+            i_A : in std_logic_vector(31 downto 0); 
+            i_B : in std_logic_vector(31 downto 0);
+            i_ALUCtrl : in std_logic_vector(3 downto 0); 
+            o_Result : out std_logic_vector(31 downto 0);
+            o_Zero : out std_logic; 
+            o_Sign : out std_logic; 
+            o_Cout : out std_logic
         );
     end component;
 
-    -- 5. ALU Control
     component alu_control is
         port(
-            i_ALUOp   : in  std_logic_vector(1 downto 0);
-            i_Funct3  : in  std_logic_vector(2 downto 0);
-            i_Funct7  : in  std_logic_vector(6 downto 0);
+            i_ALUOp : in std_logic_vector(1 downto 0); 
+            i_Funct3 : in std_logic_vector(2 downto 0);
+            i_Funct7 : in std_logic_vector(6 downto 0); 
             o_ALUCtrl : out std_logic_vector(3 downto 0)
         );
     end component;
 
-    -- 6. Fetch Logic
     component fetch_logic is
         generic(N : integer := 32);
         port(
-            i_PC        : in std_logic_vector(N-1 downto 0); 
-            i_Imm       : in std_logic_vector(N-1 downto 0); 
-            i_RS1       : in std_logic_vector(N-1 downto 0); 
-            i_Branch    : in std_logic;                      
-            i_Jump      : in std_logic_vector(1 downto 0);   
-            i_Funct3    : in std_logic_vector(2 downto 0);   
-            i_ALUZero   : in std_logic;                      
-            i_ALUSign   : in std_logic;                      
-            i_ALUCout   : in std_logic;                      
-            o_NextPC    : out std_logic_vector(N-1 downto 0) 
+            i_PC : in std_logic_vector(N-1 downto 0); 
+            i_Imm : in std_logic_vector(N-1 downto 0);
+            i_RS1 : in std_logic_vector(N-1 downto 0); 
+            i_Branch : in std_logic;
+            i_Jump : in std_logic_vector(1 downto 0); 
+            i_Funct3 : in std_logic_vector(2 downto 0);
+            i_ALUZero : in std_logic; 
+            i_ALUSign : in std_logic; 
+            i_ALUCout : in std_logic;
+            o_NextPC : out std_logic_vector(N-1 downto 0)
         );
     end component;
 
-    -- 7. Immediate Generator
     component imm_gen is
         port(
-            i_Inst    : in  std_logic_vector(31 downto 0);
-            i_ImmType : in  std_logic_vector(2 downto 0);
-            o_Imm     : out std_logic_vector(31 downto 0)
+            i_Inst : in std_logic_vector(31 downto 0); 
+            i_ImmType : in std_logic_vector(2 downto 0);
+            o_Imm : out std_logic_vector(31 downto 0)
         );
     end component;
 
-    -- 8. PC Register
     component pc_reg is
         port(
-            i_CLK    : in  std_logic;
-            i_RST    : in  std_logic;
-            i_WE     : in  std_logic;
-            i_NextPC : in  std_logic_vector(31 downto 0);
-            o_PC     : out std_logic_vector(31 downto 0)
+            i_CLK : in std_logic; 
+            i_RST : in std_logic; 
+            i_WE : in std_logic;
+            i_NextPC : in std_logic_vector(31 downto 0); 
+            o_PC : out std_logic_vector(31 downto 0)
         );
     end component;
+
     component load_extender is
     port(
-        i_DMemOut : in  std_logic_vector(31 downto 0);
-        i_Funct3  : in  std_logic_vector(2 downto 0);
-        i_AddrLSB : in  std_logic_vector(1 downto 0);
+        i_DMemOut : in std_logic_vector(31 downto 0); 
+        i_Funct3 : in std_logic_vector(2 downto 0);
+        i_AddrLSB : in std_logic_vector(1 downto 0); 
         o_ReadData: out std_logic_vector(31 downto 0)
-    );
+        );
+    end component;
+
+    -- [NEW] Pipeline Registers
+    component IF_ID_Reg is
+        port(
+            i_CLK : in std_logic; 
+            i_RST : in std_logic; 
+            i_Flush : in std_logic;
+            i_PC : in std_logic_vector(31 downto 0); 
+            i_Inst : in std_logic_vector(31 downto 0);
+            o_PC : out std_logic_vector(31 downto 0); 
+            o_Inst : out std_logic_vector(31 downto 0)
+            );
+    end component;
+
+    component ID_EX_Reg is
+        port(
+            i_CLK : in std_logic; 
+            i_RST : in std_logic; 
+            i_Flush : in std_logic;
+            i_RegWrite : in std_logic; 
+            i_MemtoReg : in std_logic_vector(1 downto 0); 
+            i_Halt : in std_logic;
+            i_MemWrite : in std_logic; 
+            i_MemRead : in std_logic;
+            i_ALUSrcA : in std_logic; 
+            i_ALUSrcB : in std_logic; 
+            i_ALUOp : in std_logic_vector(1 downto 0);
+            i_Branch : in std_logic; 
+            i_Jump : in std_logic_vector(1 downto 0);
+            i_PC : in std_logic_vector(31 downto 0); 
+            i_ReadData1 : in std_logic_vector(31 downto 0);
+            i_ReadData2 : in std_logic_vector(31 downto 0); 
+            i_Imm : in std_logic_vector(31 downto 0);
+            i_Funct3 : in std_logic_vector(2 downto 0); 
+            i_Funct7 : in std_logic_vector(6 downto 0);
+            i_Rd : in std_logic_vector(4 downto 0); 
+            i_Rs1 : in std_logic_vector(4 downto 0);
+            i_Rs2 : in std_logic_vector(4 downto 0);
+            o_RegWrite : out std_logic; 
+            o_MemtoReg : out std_logic_vector(1 downto 0); 
+            o_Halt : out std_logic;
+            o_MemWrite : out std_logic; 
+            o_MemRead : out std_logic;
+            o_ALUSrcA : out std_logic; 
+            o_ALUSrcB : out std_logic; 
+            o_ALUOp : out std_logic_vector(1 downto 0);
+            o_Branch : out std_logic; 
+            o_Jump : out std_logic_vector(1 downto 0);
+            o_PC : out std_logic_vector(31 downto 0); 
+            o_ReadData1 : out std_logic_vector(31 downto 0);
+            o_ReadData2 : out std_logic_vector(31 downto 0); 
+            o_Imm : out std_logic_vector(31 downto 0);
+            o_Funct3 : out std_logic_vector(2 downto 0); 
+            o_Funct7 : out std_logic_vector(6 downto 0);
+            o_Rd : out std_logic_vector(4 downto 0); 
+            o_Rs1 : out std_logic_vector(4 downto 0);
+            o_Rs2 : out std_logic_vector(4 downto 0)
+            );
+    end component;
+
+    component EX_MEM_Reg is
+        port(
+            i_CLK : in std_logic; 
+            i_RST : in std_logic;
+            i_RegWrite : in std_logic; 
+            i_MemtoReg : in std_logic_vector(1 downto 0); 
+            i_Halt : in std_logic;
+            i_MemWrite : in std_logic; 
+            i_MemRead : in std_logic;
+            i_PCPlus4 : in std_logic_vector(31 downto 0); 
+            i_ALUResult : in std_logic_vector(31 downto 0);
+            i_WriteData : in std_logic_vector(31 downto 0); 
+            i_Rd : in std_logic_vector(4 downto 0);
+            i_Imm : in std_logic_vector(31 downto 0);
+            o_RegWrite : out std_logic; 
+            o_MemtoReg : out std_logic_vector(1 downto 0); 
+            o_Halt : out std_logic;
+            o_MemWrite : out std_logic; 
+            o_MemRead : out std_logic;
+            o_PCPlus4 : out std_logic_vector(31 downto 0); 
+            o_ALUResult : out std_logic_vector(31 downto 0);
+            o_WriteData : out std_logic_vector(31 downto 0); 
+            o_Rd : out std_logic_vector(4 downto 0);
+            o_Imm : out std_logic_vector(31 downto 0)
+            );
+    end component;
+
+    component MEM_WB_Reg is
+        port(
+            i_CLK : in std_logic; i_RST : in std_logic;
+            i_RegWrite : in std_logic; 
+            i_MemtoReg : in std_logic_vector(1 downto 0); 
+            i_Halt : in std_logic;
+            i_ReadData : in std_logic_vector(31 downto 0); 
+            i_ALUResult : in std_logic_vector(31 downto 0);
+            i_PCPlus4 : in std_logic_vector(31 downto 0); 
+            i_Imm : in std_logic_vector(31 downto 0);
+            i_Rd : in std_logic_vector(4 downto 0);
+            o_RegWrite : out std_logic; 
+            o_MemtoReg : out std_logic_vector(1 downto 0); 
+            o_Halt : out std_logic;
+            o_ReadData : out std_logic_vector(31 downto 0); 
+            o_ALUResult : out std_logic_vector(31 downto 0);
+            o_PCPlus4 : out std_logic_vector(31 downto 0); 
+            o_Imm : out std_logic_vector(31 downto 0);
+            o_Rd : out std_logic_vector(4 downto 0)
+            );
     end component;
 
 begin
 
     -- ======================================================================
-    -- Instruction Memory Interface
+    -- [STEP 3] IF Stage & IF/ID Register
     -- ======================================================================
+
+    -- Instruction Memory
     with iInstLd select
         s_IMemAddr <= s_CurrentPC when '0',
-                      iInstAddr      when others;
+                      iInstAddr   when others;
 
     IMem: mem
-        generic map(
-            ADDR_WIDTH => ADDR_WIDTH,
-            DATA_WIDTH => N
-        )
+        generic map(ADDR_WIDTH => 10, DATA_WIDTH => N)
         port map(
-            clk  => iCLK,
-            -- [CRITICAL FIX] Using ADDR_WIDTH-1 downto 0 (e.g. 9 downto 0 for 10 bits)
-            addr => s_IMemAddr(ADDR_WIDTH+1 downto 2), 
-            data => iInstExt,
-            we   => iInstLd,
-            q    => s_Inst
+            clk => iCLK, 
+            addr => s_IMemAddr(11 downto 2), 
+            data => iInstExt, 
+            we => iInstLd, 
+            q => s_Inst
+        );
+
+    -- PC Register (NextPC comes from EX Stage Feedback)
+    U_PC : pc_reg
+        port map(
+            i_CLK => iCLK, 
+            i_RST => iRST, 
+            i_WE => '1', 
+            i_NextPC => s_NextInstAddr, 
+            o_PC => s_CurrentPC
+        );
+
+    -- IF/ID Register
+    My_IF_ID : IF_ID_Reg
+        port map(
+            i_CLK => iCLK, 
+            i_RST => iRST, 
+            i_Flush => s_IF_Flush,
+            i_PC => s_CurrentPC, 
+            i_Inst => s_Inst,
+            o_PC => s_ID_PC, 
+            o_Inst => s_ID_Inst
         );
 
     -- ======================================================================
-    -- Data Memory Interface
+    -- [STEP 4] ID Stage & ID/EX Register
     -- ======================================================================
-    DMem: mem
-        generic map(
-            ADDR_WIDTH => ADDR_WIDTH,
-            DATA_WIDTH => N
-        )
-        port map(
-            clk  => iCLK,
-            addr => s_DMemAddr(ADDR_WIDTH+1 downto 2),
-            data => s_DMemData,
-            we   => s_DMemWr,
-            q    => s_DMemOut
-        );
-
-    -- Connect Skeleton Signals used for Output
-    oALUOut <= s_DMemAddr; 
-
-    -- ======================================================================
-    -- Control Unit
-    -- ======================================================================
-    s_Funct3 <= s_Inst(14 downto 12);
-    s_Funct7 <= s_Inst(31 downto 25);
+    
+    -- Instruction Parsing
+    s_Funct3 <= s_ID_Inst(14 downto 12);
+    s_Funct7 <= s_ID_Inst(31 downto 25);
+    s_RegWrAddr <= s_ID_Inst(11 downto 7);
+    
+    -- Halt Detection (Opcode 0000000)
+    s_ID_Halt <= '1' when s_ID_Inst(6 downto 0) = "0000000" else '0';
 
     U_CONTROL : control_unit
         port map(
-            i_Opcode   => s_Inst(6 downto 0),
-            o_ALUSrc   => s_ALUSrcB,
+            i_Opcode => s_ID_Inst(6 downto 0), 
+            o_ALUSrc => s_ALUSrcB, 
             o_MemtoReg => s_MemtoReg,
-            o_RegWrite => s_RegWr,       -- Connect to s_RegWr
-            o_MemRead  => s_MemRead,
-            o_MemWrite => s_DMemWr,      -- Connect to s_DMemWr (Important!)
-            o_Branch   => s_Branch,
-            o_Jump     => s_Jump,
-            o_ALUOp    => s_ALUOp,
-            o_ImmType  => s_ImmType,
+            o_RegWrite => s_RegWr, 
+            o_MemRead => s_MemRead, 
+            o_MemWrite => s_DMemWr,
+            o_Branch => s_Branch, 
+            o_Jump => s_Jump, 
+            o_ALUOp => s_ALUOp, 
+            o_ImmType => s_ImmType,
             o_AUIPCSrc => s_ALUSrcA
         );
 
-    -- ======================================================================
-    -- PC & Fetch Logic
-    -- ======================================================================
-    U_PC : pc_reg
-        port map(
-            i_CLK    => iCLK,
-            i_RST    => iRST,
-            i_WE     => '1',
-            i_NextPC => s_NextInstAddr,
-            o_PC     => s_CurrentPC
-        );
-
-    U_FETCH : fetch_logic
-        port map(
-            i_PC      => s_CurrentPC,
-            i_Imm     => s_Imm,
-            i_RS1     => s_ReadData1,
-            i_Branch  => s_Branch,
-            i_Jump    => s_Jump,
-            i_Funct3  => s_Funct3,
-            i_ALUZero => s_Zero,
-            i_ALUSign => s_Sign,
-            i_ALUCout => s_Cout,
-            o_NextPC  => s_NextInstAddr
-        );
-
-    -- ======================================================================
-    -- Register File
-    -- ======================================================================
-    s_RegWrAddr <= s_Inst(11 downto 7);
-    
-
+    -- Register File (Write Ports connected to WB Stage Signals - Feedback)
     U_REGFILE : reg_file
         port map(
-            i_CLK    => iCLK,
-            i_RST    => iRST,
-            i_WE     => s_RegWr,
-            i_WADDR  => s_RegWrAddr,
-            i_WDATA  => s_RegWrData,
-            i_RADDR1 => s_Inst(19 downto 15),
-            i_RADDR2 => s_Inst(24 downto 20),
-            o_RDATA1 => s_ReadData1,
-            o_RDATA2 => s_ReadData2 -- Internal signal (also goes to s_DMemData)
+            i_CLK => iCLK, 
+            i_RST => iRST,
+            i_WE => s_WB_RegWrite, 
+            i_WADDR => s_WB_Rd, 
+            i_WDATA => s_WB_WriteData,
+            i_RADDR1 => s_ID_Inst(19 downto 15), 
+            i_RADDR2 => s_ID_Inst(24 downto 20),
+            o_RDATA1 => s_ReadData1, 
+            o_RDATA2 => s_ReadData2
         );
-        
-    s_DMemData <= s_ReadData2; -- Hook up to DMem Input
 
-    -- ======================================================================
-    -- Immediate Generator
-    -- ======================================================================
     U_IMM_GEN : imm_gen
         port map(
-            i_Inst    => s_Inst,
-            i_ImmType => s_ImmType,
-            o_Imm     => s_Imm
-        );
+            i_Inst => s_ID_Inst, 
+            i_ImmType => s_ImmType, 
+            o_Imm => s_Imm
+            );
 
-    -- ======================================================================
-    -- ALU Section
-    -- ======================================================================
-    -- MUX A
-    s_ALUInputA <= s_CurrentPC when s_ALUSrcA = '1' else s_ReadData1;
-    
-    -- MUX B
-    s_ALUInputB <= s_Imm       when s_ALUSrcB = '1' else s_ReadData2;
-
-    U_ALUCTRL : alu_control
+    -- ID/EX Register
+    My_ID_EX : ID_EX_Reg
         port map(
-            i_ALUOp   => s_ALUOp,
-            i_Funct3  => s_Funct3,
-            i_Funct7  => s_Funct7,
+                i_CLK => iCLK, 
+                i_RST => iRST, 
+                i_Flush => s_ID_Flush,
+                i_RegWrite => s_RegWr, 
+                i_MemtoReg => s_MemtoReg, 
+                i_Halt => s_ID_Halt,
+                i_MemWrite => s_DMemWr, 
+                i_MemRead => s_MemRead,
+                i_ALUSrcA => s_ALUSrcA, 
+                i_ALUSrcB => s_ALUSrcB, 
+                i_ALUOp => s_ALUOp,
+                i_Branch => s_Branch, 
+                i_Jump => s_Jump,
+                i_PC => s_ID_PC, 
+                i_ReadData1 => s_ReadData1, 
+                i_ReadData2 => s_ReadData2, 
+                i_Imm => s_Imm,
+                i_Funct3 => s_Funct3, 
+                i_Funct7 => s_Funct7, 
+                i_Rd => s_RegWrAddr,
+                i_Rs1 => s_ID_Inst(19 downto 15), 
+                i_Rs2 => s_ID_Inst(24 downto 20),
+                o_RegWrite => s_EX_RegWrite, 
+                o_MemtoReg => s_EX_MemtoReg, 
+                o_Halt => s_EX_Halt,
+                o_MemWrite => s_EX_MemWrite, 
+                o_MemRead => s_EX_MemRead,
+                o_ALUSrcA => s_EX_ALUSrcA, 
+                o_ALUSrcB => s_EX_ALUSrcB, 
+                o_ALUOp => s_EX_ALUOp,
+                o_Branch => s_EX_Branch, 
+                o_Jump => s_EX_Jump,
+                o_PC => s_EX_PC, 
+                o_ReadData1 => s_EX_ReadData1, 
+                o_ReadData2 => s_EX_ReadData2, 
+                o_Imm => s_EX_Imm,
+                o_Funct3 => s_EX_Funct3, 
+                o_Funct7 => s_EX_Funct7, 
+                o_Rd => s_EX_Rd,
+                o_Rs1 => s_EX_Rs1, 
+                o_Rs2 => s_EX_Rs2
+                ); 
+
+    -- ======================================================================
+    -- [STEP 5] EX Stage & EX/MEM Register
+    -- ======================================================================
+
+    s_ALUInputA <= s_EX_PC when s_EX_ALUSrcA = '1' else s_EX_ReadData1;
+    s_ALUInputB <= s_EX_Imm when s_EX_ALUSrcB = '1' else s_EX_ReadData2;
+
+    U_ALU_CONTROL : alu_control
+        port map(
+            i_ALUOp => s_EX_ALUOp, 
+            i_Funct3 => s_EX_Funct3, 
+            i_Funct7 => s_EX_Funct7, 
             o_ALUCtrl => s_ALUCtrl
         );
 
     U_ALU : alu
         port map(
-            i_A       => s_ALUInputA,
-            i_B       => s_ALUInputB,
+            i_A => s_ALUInputA, 
+            i_B => s_ALUInputB, 
             i_ALUCtrl => s_ALUCtrl,
-            o_Result  => s_ALUResult,
-            o_Zero    => s_Zero,
-            o_Sign    => s_Sign,
-            o_Cout    => s_Cout
+            o_Result => s_ALUResult, 
+            o_Zero => s_Zero, 
+            o_Sign => s_Sign, 
+            o_Cout => s_Cout
         );
 
-    s_DMemAddr <= s_ALUResult; -- Hook up to DMem Address
-    U_LOADEXT : load_extender
-    port map(
-        i_DMemOut  => s_DMemOut,       -- 32bit word from memory
-        i_Funct3   => s_Funct3,        -- funct3 for load exteder (lb lh lw lbu lhu)
-        i_AddrLSB  => s_ByteOffset,    -- address lower 2bit
-        o_ReadData => s_LoadData       -- Sign/Zero sign extended
-    );
-    s_ByteOffset <= s_ALUResult(1 downto 0);
-    -- ======================================================================
-    -- Writeback MUX
-    -- ======================================================================
-    with s_MemtoReg select
-        s_RegWrData <= s_DMemAddr                                     when "00", -- ALU
-                       s_LoadData                                  when "01", -- Memory
-                       std_logic_vector(unsigned(s_CurrentPC) + 4)    when "10", -- PC+4
-                       s_Imm                                          when "11", -- Imm (LUI)
-                       (others => '0')                                when others;
+    -- Branch Logic (Feedback to IF Stage)
+    U_FETCH : fetch_logic
+        port map(
+            i_PC => s_EX_PC, 
+            i_Imm => s_EX_Imm, 
+            i_RS1 => s_EX_ReadData1,
+            i_Branch => s_EX_Branch, 
+            i_Jump => s_EX_Jump, 
+            i_Funct3 => s_EX_Funct3,
+            i_ALUZero => s_Zero, 
+            i_ALUSign => s_Sign, 
+            i_ALUCout => s_Cout,
+            o_NextPC => s_NextInstAddr
+        );
 
-    -- ======================================================================
-    -- Required Signals for Testbench
-    -- ======================================================================
-    
-    -- 1. Overflow Signal (Placeholder as current ALU doesn't explicitly output overflow)
-    s_Ovfl <= '0'; 
-
-    -- 2. Halt Logic (FIXED: Prevents premature exit during reset)
-    process(s_Inst, iRST)
+    -- Flush Logic: If NextPC != PC+4, branch is taken -> Flush IF and ID stages
+    process(s_NextInstAddr, s_EX_PC)
     begin
-        if (iRST = '1') then
-            s_Halt <= '0';
-        elsif (s_Inst(6 downto 0)) = "0000000" then
-            s_Halt <= '1';
+        if (s_NextInstAddr /= std_logic_vector(unsigned(s_EX_PC) + 4)) then
+             s_IF_Flush <= '1'; s_ID_Flush <= '1';
         else
-            s_Halt <= '0';
+             s_IF_Flush <= '0'; s_ID_Flush <= '0';
         end if;
     end process;
+
+    -- EX/MEM Register
+    My_EX_MEM : EX_MEM_Reg
+        port map(
+            i_CLK => iCLK, 
+            i_RST => iRST,
+            i_RegWrite => s_EX_RegWrite, 
+            i_MemtoReg => s_EX_MemtoReg, 
+            i_Halt => s_EX_Halt,
+            i_MemWrite => s_EX_MemWrite, 
+            i_MemRead => s_EX_MemRead,
+            i_PCPlus4 => std_logic_vector(unsigned(s_EX_PC) + 4),
+            i_ALUResult => s_ALUResult, 
+            i_WriteData => s_EX_ReadData2,
+            i_Rd => s_EX_Rd, 
+            i_Imm => s_EX_Imm,
+            o_RegWrite => s_MEM_RegWrite, 
+            o_MemtoReg => s_MEM_MemtoReg, 
+            o_Halt => s_MEM_Halt,
+            o_MemWrite => s_MEM_MemWrite, 
+            o_MemRead => s_MEM_MemRead,
+            o_PCPlus4 => s_MEM_PCPlus4, 
+            o_ALUResult => s_MEM_ALUResult,
+            o_WriteData => s_MEM_WriteData, 
+            o_Rd => s_MEM_Rd, 
+            o_Imm => s_MEM_Imm
+        );
+
+    -- ======================================================================
+    -- [STEP 6] MEM Stage & MEM/WB Register
+    -- ======================================================================
+
+    DMem: mem
+        generic map(ADDR_WIDTH => 10, DATA_WIDTH => N)
+        port map(
+            clk => iCLK, 
+            addr => s_MEM_ALUResult(11 downto 2),
+            data => s_MEM_WriteData, 
+            we => s_MEM_MemWrite, 
+            q => s_DMemOut
+        );
+    
+    oALUOut <= s_MEM_ALUResult;
+    
+    -- Load Extender (Optional Placeholder)
+    U_LOADEXT : load_extender
+        port map(
+            i_DMemOut => s_DMemOut, 
+            i_Funct3 => "010", -- LW Assumed or Pass s_MEM_Funct3 if added
+            i_AddrLSB => s_MEM_ALUResult(1 downto 0), 
+            o_ReadData => s_LoadData
+        );
+
+    -- MEM/WB Register
+    My_MEM_WB : MEM_WB_Reg
+        port map(
+            i_CLK => iCLK, 
+            i_RST => iRST,
+            i_RegWrite => s_MEM_RegWrite, 
+            i_MemtoReg => s_MEM_MemtoReg, 
+            i_Halt => s_MEM_Halt,
+            i_ReadData => s_LoadData, 
+            i_ALUResult => s_MEM_ALUResult,
+            i_PCPlus4 => s_MEM_PCPlus4, 
+            i_Imm => s_MEM_Imm, 
+            i_Rd => s_MEM_Rd,
+            o_RegWrite => s_WB_RegWrite, 
+            o_MemtoReg => s_WB_MemtoReg, 
+            o_Halt => s_WB_Halt,
+            o_ReadData => s_WB_ReadData, 
+            o_ALUResult => s_WB_ALUResult,
+            o_PCPlus4 => s_WB_PCPlus4, 
+            o_Imm => s_WB_Imm, 
+            o_Rd => s_WB_Rd
+        );
+
+    -- ======================================================================
+    -- [STEP 7] WB Stage
+    -- ======================================================================
+
+    -- Final Writeback Mux
+    with s_WB_MemtoReg select
+        s_WB_WriteData <= s_WB_ALUResult when "00",
+                          s_WB_ReadData  when "01",
+                          s_WB_PCPlus4   when "10",
+                          s_WB_Imm       when "11",
+                          (others => '0') when others;
+
+    s_Halt <= s_WB_Halt;
+    s_Ovfl <= '0'; -- Placeholder
 
 end structure;
