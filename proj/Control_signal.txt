@@ -1,0 +1,67 @@
+----------------------------------------------------------------
+IF/ID
+----------------------------------------------------------------
+Data:
+  s_CurrentPC
+  s_Inst
+Control:
+  s_IF_Flush
+
+----------------------------------------------------------------
+ID/EX
+----------------------------------------------------------------
+Data:
+  s_ID_PC
+  s_ReadData1
+  s_ReadData2
+  s_Imm
+  s_Funct3
+  s_Funct7
+  s_Inst(11 downto 7)   ; Rd
+  s_Inst(19 downto 15)  ; Rs1
+  s_Inst(24 downto 20)  ; Rs2
+
+Control:
+  s_RegWr
+  s_DMemWr
+  s_MemRead
+  s_MemtoReg
+  s_ALUSrcA
+  s_ALUSrcB
+  s_ALUOp
+  s_Branch
+  s_Jump
+  s_ID_Halt
+  s_ID_Flush
+
+----------------------------------------------------------------
+EX/MEM
+----------------------------------------------------------------
+Data:
+  s_ALUResult
+  std_logic_vector(unsigned(s_EX_PC) + 4)
+  s_EX_ReadData2
+  s_EX_Imm
+  s_EX_Rd
+
+Control:
+  s_EX_RegWrite
+  s_EX_MemWrite
+  s_EX_MemRead
+  s_EX_MemtoReg
+  s_EX_Halt
+
+----------------------------------------------------------------
+MEM/WB
+----------------------------------------------------------------
+Data:
+  s_LoadData
+  s_MEM_ALUResult
+  s_MEM_PCPlus4
+  s_MEM_Imm
+  s_MEM_Rd
+
+Control:
+  s_MEM_RegWrite
+  s_MEM_MemtoReg
+  s_MEM_Halt
