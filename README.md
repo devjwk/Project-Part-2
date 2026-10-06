@@ -43,11 +43,11 @@ Iowa State University · CprE 381 · Project Group F_04
 
 ```mermaid
 flowchart LR
-    IF["IF · fetch"] --> R1(["IF/ID"]) --> ID["ID · decode, register read"] --> R2(["ID/EX"]) --> EX["EX · ALU"] --> R3(["EX/MEM"]) --> MEM["MEM · data memory"] --> R4(["MEM/WB"]) --> WB["WB · write back"]
+    IF["IF<br/>fetch"] -->|"IF/ID"| ID["ID<br/>decode"] -->|"ID/EX"| EX["EX<br/>ALU"] -->|"EX/MEM"| MEM["MEM<br/>data memory"] -->|"MEM/WB"| WB["WB<br/>write back"]
     WB -.->|"register write"| ID
 ```
 
-Rounded boxes are the four pipeline registers added in this stage. There is no forwarding or stalling hardware.
+The labels on the arrows are the four pipeline registers added in this stage. There is no forwarding or stalling hardware.
 
 ## My role
 
