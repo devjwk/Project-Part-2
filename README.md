@@ -1,15 +1,11 @@
 <div align="center">
 
-# RISC-V PIPELINE · SOFTWARE-SCHEDULED
+<img src="assets/banner.svg" alt="RISC-V PIPELINE · SOFTWARE-SCHEDULED — Five stages, a much faster clock, and hazards left to the programmer" width="100%">
 
-### Five stages, a much faster clock, and hazards left to the programmer
-
-**VHDL · RV32I · QuestaSim · Quartus**
-
-![RTL](https://img.shields.io/badge/RTL-VHDL-6366F1?style=flat-square)
-![ISA](https://img.shields.io/badge/ISA-RV32I-0F172A?style=flat-square)
-![Fmax](https://img.shields.io/badge/Fmax-59.53%20MHz-0891B2?style=flat-square)
-![Stage](https://img.shields.io/badge/Stage-2%20of%203-F59E0B?style=flat-square)
+![RTL](https://img.shields.io/badge/RTL-VHDL-283272?style=flat-square&labelColor=10163F)
+![ISA](https://img.shields.io/badge/ISA-RV32I-10163F?style=flat-square&labelColor=10163F)
+![Fmax](https://img.shields.io/badge/Fmax-59.53%20MHz-B77F00?style=flat-square&labelColor=10163F)
+![Stage](https://img.shields.io/badge/Stage-2%20of%203-3B4BA8?style=flat-square&labelColor=10163F)
 
 Iowa State University · CprE 381 · Project Group F_04
 
@@ -42,6 +38,7 @@ Iowa State University · CprE 381 · Project Group F_04
 ## Pipeline
 
 ```mermaid
+%%{init: {"theme": "base", "themeVariables": {"primaryColor": "#283272", "primaryTextColor": "#ffffff", "primaryBorderColor": "#10163F", "lineColor": "#94A3B8", "secondaryColor": "#283272", "tertiaryColor": "#10163F", "clusterBkg": "#F8FAFC", "clusterBorder": "#94A3B8", "edgeLabelBackground": "#F1F5F9", "fontFamily": "ui-sans-serif, system-ui, sans-serif"}}}%%
 flowchart LR
     IF["IF<br/>fetch"] -->|"IF/ID"| ID["ID<br/>decode"] -->|"ID/EX"| EX["EX<br/>ALU"] -->|"EX/MEM"| MEM["MEM<br/>data memory"] -->|"MEM/WB"| WB["WB<br/>write back"]
     WB -.->|"register write"| ID
