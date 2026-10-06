@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 280" role="img" aria-label="RISC-V PIPELINE · SOFTWARE-SCHEDULED">
+<title>RISC-V PIPELINE · SOFTWARE-SCHEDULED</title>
+<style>
+.kick{font:700 15px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:3px;fill:#F6B21A}
+.title{font:800 29px system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;letter-spacing:1.5px;fill:#ffffff}
+.tag{font:500 21px system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;fill:#ffffff;opacity:.86}
+.m{font:500 13px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace} .mb{font:700 14px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace} .mbig{font:800 20px system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif} .big{font:800 30px system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif} .term{font:500 15px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.bar{fill:#F6B21A}
+.s0{animation:pulse 2.5s 0.0s infinite}.s1{animation:pulse 2.5s 0.5s infinite}.s2{animation:pulse 2.5s 1.0s infinite}.s3{animation:pulse 2.5s 1.5s infinite}.s4{animation:pulse 2.5s 2.0s infinite}@keyframes pulse{0%,60%,100%{opacity:1}30%{opacity:.55}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#10163F"/><stop offset="1" stop-color="#283272"/></linearGradient></defs>
+<rect width="1200" height="280" rx="20" fill="url(#g)"/>
+<rect class="bar" x="64" y="62" width="44" height="5" rx="2.5"/>
+<text x="64" y="100" class="kick">VHDL · RV32I · QUESTASIM · QUARTUS</text>
+<text x="64" y="158" class="title">RISC-V PIPELINE · SOFTWARE-SCHEDULED</text>
+<text x="64" y="196" class="tag">Five stages, a much faster clock, and hazards left to</text>
+<text x="64" y="224" class="tag">the programmer</text>
+<g transform="translate(810,50)"><rect x="0" y="64" width="56" height="56" rx="10" fill="#3B82F6" class="st s0"/><text x="28.0" y="99" class="mb" text-anchor="middle" fill="#ffffff">IF</text><path d="M57 92 h10" stroke="#ffffff" stroke-width="2.5" opacity=".7"/><rect x="68" y="64" width="56" height="56" rx="10" fill="#06B6D4" class="st s1"/><text x="96.0" y="99" class="mb" text-anchor="middle" fill="#ffffff">ID</text><path d="M125 92 h10" stroke="#ffffff" stroke-width="2.5" opacity=".7"/><rect x="136" y="64" width="56" height="56" rx="10" fill="#10B981" class="st s2"/><text x="164.0" y="99" class="mb" text-anchor="middle" fill="#ffffff">EX</text><path d="M193 92 h10" stroke="#ffffff" stroke-width="2.5" opacity=".7"/><rect x="204" y="64" width="56" height="56" rx="10" fill="#F59E0B" class="st s3"/><text x="232.0" y="99" class="mb" text-anchor="middle" fill="#ffffff">MEM</text><path d="M261 92 h10" stroke="#ffffff" stroke-width="2.5" opacity=".7"/><rect x="272" y="64" width="56" height="56" rx="10" fill="#EF4444" class="st s4"/><text x="300.0" y="99" class="mb" text-anchor="middle" fill="#ffffff">WB</text><text x="170" y="152" class="m" text-anchor="middle" fill="#F6B21A">hazards scheduled in software</text></g>
+</svg>
