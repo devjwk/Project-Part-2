@@ -1,6 +1,31 @@
-# RISC-V Software-Scheduled Pipeline (CprE 381, Project Part 2)
+<div align="center">
 
-A five-stage pipelined RV32I processor in VHDL with no hazard hardware: the assembly program is reordered and padded with NOPs so hazards never occur.
+# RISC-V PIPELINE · SOFTWARE-SCHEDULED
+
+### Five stages, a much faster clock, and hazards left to the programmer
+
+**VHDL · RV32I · QuestaSim · Quartus**
+
+![RTL](https://img.shields.io/badge/RTL-VHDL-6366F1?style=flat-square)
+![ISA](https://img.shields.io/badge/ISA-RV32I-0F172A?style=flat-square)
+![Fmax](https://img.shields.io/badge/Fmax-59.53%20MHz-0891B2?style=flat-square)
+![Stage](https://img.shields.io/badge/Stage-2%20of%203-F59E0B?style=flat-square)
+
+Iowa State University · CprE 381 · Project Group F_04
+
+[Overview](#overview) · [Pipeline](#pipeline) · [My role](#my-role) · [Results](#results) · [Limitations](#limitations-and-next-steps)
+
+</div>
+
+---
+
+> **Where it stands — Complete**  
+> The clock is about 2.5 times faster than single-cycle.  
+> Programs must be reordered and padded with NOPs by hand, which costs more than the faster clock gains on Mergesort.
+
+| Clock period | Max frequency | CPI · Mergesort | Mergesort |
+| :---: | :---: | :---: | :---: |
+| **16.80 ns** | **59.53 MHz** | **1.12** | **74,105 ns** |
 
 | | |
 |---|---|
@@ -13,6 +38,16 @@ A five-stage pipelined RV32I processor in VHDL with no hazard hardware: the asse
 
 - **Problem:** the single-cycle processor needs a 41.40 ns clock because one instruction passes through every block in a single cycle. Splitting the datapath into stages shortens the clock, but instructions now overlap and can read stale values or follow the wrong branch.
 - **Approach in this stage:** add the four pipeline registers (IF/ID, ID/EX, EX/MEM, MEM/WB) and leave hazard handling to the programmer.
+
+## Pipeline
+
+```mermaid
+flowchart LR
+    IF["IF · fetch"] --> R1(["IF/ID"]) --> ID["ID · decode, register read"] --> R2(["ID/EX"]) --> EX["EX · ALU"] --> R3(["EX/MEM"]) --> MEM["MEM · data memory"] --> R4(["MEM/WB"]) --> WB["WB · write back"]
+    WB -.->|"register write"| ID
+```
+
+Rounded boxes are the four pipeline registers added in this stage. There is no forwarding or stalling hardware.
 
 ## My role
 
